@@ -1,0 +1,1 @@
+<img src="./image.ppm" width="1000px">
