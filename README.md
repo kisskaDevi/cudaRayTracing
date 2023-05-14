@@ -1,1 +1,2 @@
-<img src="./image.ppm" width="1000px">
+# Cuda ray tracing
+<img src="./image.jpg" width="1000px">
