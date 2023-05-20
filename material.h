@@ -99,31 +99,29 @@ class glass : public material {
 private:
     vec4 albedo{ 0.0f, 0.0f, 0.0f, 0.0f };
     float refractiveIndex{ 1.0f };
-    float refractProb{ 0.8f };
-    float fuzz{ 3.0f };
-    float angle{ 0.1f * pi };
+    float refractProb{ 1.0f };
 
 public:
-    __device__ glass(const vec4& a, const float& refractiveIndex) : albedo(a), refractiveIndex(refractiveIndex){}
+    __device__ glass(const vec4& a, const float& refractiveIndex, const float& refractProb) : albedo(a), refractiveIndex(refractiveIndex), refractProb(refractProb){}
     __device__ vec4 scatter(const ray& r, const vec4& norm, curandState* local_rand_state) const override {
         vec4 scattered = vec4(0.0f, 0.0f, 0.0f, 0.0f);
         if (curand_uniform(local_rand_state) <= refractProb) {
             const vec4& d = r.getDirection();
-            float cosPhi = dot(d, norm);
-            float sinPhi = std::sqrt(1.0f - cosPhi * cosPhi);
-            float sinTheta = ((cosPhi < 0.0f) ? (1.0f / refractiveIndex) : 1.0) * sinPhi;
+            const vec4 n = (dot(d, norm) <= 0.0f) ? norm : -norm;
+            const float eta = (dot(d, norm) <= 0.0f) ? (1.0f / refractiveIndex) : refractiveIndex;
+
+            float cosPhi = dot(d, n);
+            float sinTheta = eta * std::sqrt(1.0f - cosPhi * cosPhi);
             if (std::abs(sinTheta) <= 1.0f) {
                 float cosTheta = std::sqrt(1.0f - sinTheta * sinTheta);
-                vec4 tau = d - dot(d, norm) * norm;
-                tau.normalize();
+                vec4 tau = normal(d - dot(d, n) * n);
 
-                float rn = cosPhi / std::abs(cosPhi) * std::abs(cosTheta);
-                float rt = std::abs(sinTheta);
-                scattered = rn * norm + rt * tau;
+                scattered = sinTheta * tau  - cosTheta * n;
             }
-        } else {
+        }
+        if(scattered.length2() == 0.0f){
             vec4 reflect = normal(r.getDirection() + 2.0f * std::abs(dot(r.getDirection(), norm)) * norm);
-            scattered = reflect + fuzz * random_in_unit_sphere(norm, reflect, angle, local_rand_state);
+            scattered = reflect;
             scattered = (dot(scattered, norm) > 0.0f ? 1.0f : 0.0f) * scattered;
         }
 

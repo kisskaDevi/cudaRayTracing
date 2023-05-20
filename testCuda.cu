@@ -70,7 +70,7 @@ __global__ void render(vec4* frameBuffer, size_t max_x, size_t max_y, size_t hit
 __global__ void create_world(camera* cam, int width, int height, hitableList* d_list) {
     d_list->add(new sphere(vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.5, new lambertian(vec4(0.8, 0.3, 0.3, 1.0f))));
     d_list->add(new sphere(vec4(0.0f, 1.0f, 0.0f, 1.0f), 0.5, new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)));
-    d_list->add(new sphere(vec4(0.0f, -1.0f, 0.0f, 1.0f), 0.5, new glass(vec4(0.9f, 0.9f, 0.9f, 1.0f), 2.33f)));
+    d_list->add(new sphere(vec4(0.0f, -1.0f, 0.0f, 1.0f), 0.5, new glass(vec4(0.9f, 0.9f, 0.9f, 1.0f), 1.5f, 0.96f)));
 
     d_list->add(new sphere(vec4(0.0f, 0.0f, -100.5f, 1.0f), 100, new lambertian(vec4(0.5f, 0.5f, 0.5f, 1.0f))));
 
@@ -134,7 +134,7 @@ int testCuda()
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    render<<<blocks, threads>>>(frameBuffer, width, height, 10, 1000, 10, cam, d_list, d_rand_state);
+    render<<<blocks, threads>>>(frameBuffer, width, height, 10, 100, 10, cam, d_list, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
