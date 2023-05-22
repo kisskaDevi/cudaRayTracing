@@ -51,13 +51,13 @@ __global__ void render(vec4* frameBuffer, size_t max_x, size_t max_y, size_t hit
         int pixel_index = j * max_x + i;
         curandState local_rand_state = rand_state[pixel_index];
         for (size_t sampleIndex = 0; sampleIndex < samplesCount; sampleIndex++) {
-            float u = 2.0f * float(i + curand_uniform(&local_rand_state)) / float(max_x) - 1.0f;
-            float v = 2.0f * float(j + curand_uniform(&local_rand_state)) / float(max_y) - 1.0f;
+            float u = 2.0f * float(i) / float(max_x) - 1.0f;
+            float v = 2.0f * float(j) / float(max_y) - 1.0f;
 
             size_t hitCounter = 0;
             vec4 col = vec4(0.0f, 0.0f, 0.0f, 0.0f);
             for (size_t rayIndex = 0 ; rayIndex < raysCount; rayIndex++) {
-                col += color(cam->getPixelRay(u, v), hitCount, list, &local_rand_state);
+                col += color(cam->getPixelRay(u, v, &local_rand_state), hitCount, list, &local_rand_state);
                 hitCounter += col.length2() > 0.0f ? 1 : 0;
             }
             col /= hitCounter;
@@ -71,6 +71,13 @@ __global__ void create_world(camera* cam, int width, int height, hitableList* d_
     d_list->add(new sphere(vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.5, new lambertian(vec4(0.8, 0.3, 0.3, 1.0f))));
     d_list->add(new sphere(vec4(0.0f, 1.0f, 0.0f, 1.0f), 0.5, new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)));
     d_list->add(new sphere(vec4(0.0f, -1.0f, 0.0f, 1.0f), 0.5, new glass(vec4(0.9f, 0.9f, 0.9f, 1.0f), 1.5f, 0.96f)));
+    d_list->add(new sphere(vec4(-6.0f, -6.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.4, 0.8, 1.0f))));
+    d_list->add(new sphere(vec4(-6.0f, -5.0f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.5, 0.7, 1.0f))));
+    d_list->add(new sphere(vec4(-6.0f, -4.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.6, 0.6, 1.0f))));
+    d_list->add(new sphere(vec4(-6.0f, 6.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.7, 0.5, 1.0f))));
+    d_list->add(new sphere(vec4(-6.0f, 5.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.8, 0.4, 1.0f))));
+    d_list->add(new sphere(vec4(-6.0f, 4.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.9, 0.3, 1.0f))));
+    d_list->add(new sphere(vec4(1.5f, 0.0f, 0.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.9, 0.3, 1.0f))));
 
     d_list->add(new sphere(vec4(0.0f, 0.0f, -100.5f, 1.0f), 100, new lambertian(vec4(0.5f, 0.5f, 0.5f, 1.0f))));
 
@@ -81,8 +88,8 @@ __global__ void create_world(camera* cam, int width, int height, hitableList* d_
 
     d_list->add(new sphere(vec4(-0.5f, -0.5f, 1.0f, 1.0f), 0.5, new emitter(vec4(1.0f, 1.0f, 1.0f, 1.0f))));
     d_list->add(new sphere(vec4(-0.5f, 0.5f, 1.0f, 1.0f), 0.5, new emitter(vec4(0.0f, 1.0f, 1.0f, 1.0f))));
-    //d_list->add(new sphere(vec4(0.0f, 0.0f, 0.0f, 1.0f), 500, new emitter(vec4(0.5f, 0.78f, 1.0f, 1.0f))));
-    *cam = camera(ray(vec4(2.0f, 0.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f)), width, height);
+    d_list->add(new sphere(vec4(0.0f, 0.0f, 0.0f, 1.0f), 500, new emitter(vec4(0.5f, 0.78f, 1.0f, 1.0f))));
+    *cam = camera(ray(vec4(2.0f, 0.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f)), float(width) / float(height));
 }
 
 __global__ void free_world(hitableList* d_list) {
@@ -92,12 +99,12 @@ __global__ void free_world(hitableList* d_list) {
 void outImage(vec4* frameBuffer, size_t width, size_t height, const std::string& filename) {
     std::ofstream image(filename);
     image << "P3\n" << width << " " << height << "\n255\n";
-    for (int j = height - 1; j >= 0; j--) {
-        for (int i = 0; i < width; i++) {
+    for (int j = 0; j < height; j++) {
+        for (int i = width - 1; i >= 0; i--) {
             size_t pixel_index = j * width + i;
-            image << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].r()) << " "
-                << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].g()) << " "
-                << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].b()) << "\n";
+            image   << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].r()) << " "
+                    << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].g()) << " "
+                    << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].b()) << "\n";
         }
     }
     image.close();
