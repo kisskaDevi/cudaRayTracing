@@ -6,6 +6,7 @@
 #include <curand_kernel.h>
 #include "vec4.h"
 #include "ray.h"
+#include "triangle.h"
 #include "sphere.h"
 #include "hitableList.h"
 #include "camera.h"
@@ -22,17 +23,18 @@ void check_cuda(cudaError_t result, char const* const func, const char* const fi
 
 __device__ vec4 color(ray r, size_t maxIterations, hitableList* list, curandState* local_rand_state) {
     vec4 color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    hitRecord rec;
+    bool lightFound = false;
     for (; maxIterations > 0; maxIterations--) {
-        if (r.getDirection().length2() != 0.0f && list->hit(r, 0.001f, FLT_MAX, rec)) {
-            vec4 reflect = rec.mat->scatter(r, rec.normal, local_rand_state);
+        hitRecord rec;
+        if (!lightFound && r.getDirection().length2() != 0.0f && list->hit(r, 0.001f, FLT_MAX, rec)) {
             color = min(rec.mat->getAlbedo(), color);
-            r = ray(rec.point, reflect);
+            r = ray(rec.point, rec.mat->scatter(r, rec.normal, local_rand_state));
+            lightFound |= rec.mat->lightFound();
         } else {
             break;
         }
     }
-    return (rec.mat && rec.mat->lightFound()) ? color : vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    return lightFound ? color : vec4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 __global__ void render_init(int max_x, int max_y, curandState* rand_state) {
@@ -68,28 +70,79 @@ __global__ void render(vec4* frameBuffer, size_t max_x, size_t max_y, size_t hit
 }
 
 __global__ void create_world(camera* cam, int width, int height, hitableList* d_list) {
-    d_list->add(new sphere(vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.5, new lambertian(vec4(0.8, 0.3, 0.3, 1.0f))));
-    d_list->add(new sphere(vec4(0.0f, 1.0f, 0.0f, 1.0f), 0.5, new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)));
-    d_list->add(new sphere(vec4(0.0f, -1.0f, 0.0f, 1.0f), 0.5, new glass(vec4(0.9f, 0.9f, 0.9f, 1.0f), 1.5f, 0.96f)));
-    d_list->add(new sphere(vec4(-6.0f, -6.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.4, 0.8, 1.0f))));
-    d_list->add(new sphere(vec4(-6.0f, -5.0f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.5, 0.7, 1.0f))));
-    d_list->add(new sphere(vec4(-6.0f, -4.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.6, 0.6, 1.0f))));
-    d_list->add(new sphere(vec4(-6.0f, 6.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.7, 0.5, 1.0f))));
-    d_list->add(new sphere(vec4(-6.0f, 5.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.8, 0.4, 1.0f))));
-    d_list->add(new sphere(vec4(-6.0f, 4.5f, 4.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.9, 0.3, 1.0f))));
-    d_list->add(new sphere(vec4(1.5f, 0.0f, 0.0f, 1.0f), 0.1, new lambertian(vec4(0.8, 0.9, 0.3, 1.0f))));
+    d_list->add(new sphere(vec4(0.0f, 0.0f, 0.5f, 1.0f), 0.5, new lambertian(vec4(0.8, 0.3, 0.3, 1.0f))));
+    d_list->add(new sphere(vec4(0.0f, 1.0f, 0.5f, 1.0f), 0.5, new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)));
+    d_list->add(new sphere(vec4(0.0f, -1.0f, 0.5f, 1.0f), 0.5, new glass(vec4(0.9f, 0.9f, 0.9f, 1.0f), 1.5f, 0.96f)));
 
-    d_list->add(new sphere(vec4(0.0f, 0.0f, -100.5f, 1.0f), 100, new lambertian(vec4(0.5f, 0.5f, 0.5f, 1.0f))));
+    //down
+    d_list->add( new triangle(  vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(3.0f, -3.0f, 0.0f, 1.0f),
+                                vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f),
+        new lambertian(vec4(0.6f, 0.6f, 0.8f, 1.0f))
+    ));
+    d_list->add( new triangle(   vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(3.0f, -3.0f, 0.0f, 1.0f),
+                                 vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f),
+        new lambertian(vec4(0.6f, 0.6f, 0.8f, 1.0f))
+    ));
 
-    d_list->add(new sphere(vec4( 1.5f, -1.5f, 0.0f, 1.0f), 0.5, new emitter(vec4(0.99f, 0.8f, 0.2f, 1.0f))));
-    d_list->add(new sphere(vec4( 1.5f,  1.5f, 0.0f, 1.0f), 0.5, new emitter(vec4(0.2f, 0.8f, 0.99f, 1.0f))));
-    d_list->add(new sphere(vec4(-1.5f, -2.5f, 0.0f, 1.0f), 0.5, new emitter(vec4(0.99f, 0.4f, 0.85f, 1.0f))));
-    d_list->add(new sphere(vec4(-1.5f,  2.5f, 0.0f, 1.0f), 0.5, new emitter(vec4(0.4f, 0.99f, 0.5f, 1.0f))));
+    //top
+    d_list->add( new triangle(  vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(3.0f, -3.0f, 3.0f, 1.0f),
+                                vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f),
+        new emitter(vec4(0.8f, 0.8f, 0.8f, 1.0f))
+    ));
+    d_list->add( new triangle(  vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(3.0f, -3.0f, 3.0f, 1.0f),
+                                vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f),
+        new emitter(vec4(0.8f, 0.8f, 0.8f, 1.0f))
+    ));
 
-    d_list->add(new sphere(vec4(-0.5f, -0.5f, 1.0f, 1.0f), 0.5, new emitter(vec4(1.0f, 1.0f, 1.0f, 1.0f))));
-    d_list->add(new sphere(vec4(-0.5f, 0.5f, 1.0f, 1.0f), 0.5, new emitter(vec4(0.0f, 1.0f, 1.0f, 1.0f))));
-    d_list->add(new sphere(vec4(0.0f, 0.0f, 0.0f, 1.0f), 500, new emitter(vec4(0.5f, 0.78f, 1.0f, 1.0f))));
-    *cam = camera(ray(vec4(2.0f, 0.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f)), float(width) / float(height));
+    //back
+    d_list->add( new triangle(  vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f),
+                                vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f),
+        new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)
+    ));
+    d_list->add(new triangle(   vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(-3.0f, -3.0f, 0.0f, 1.0f),
+                                vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f),
+        new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)
+    ));
+
+    //front
+    d_list->add(new triangle(   vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(3.0f, 3.0f, 3.0f, 1.0f),
+                                vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+        new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)
+    ));
+    d_list->add(new triangle(   vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(3.0f, -3.0f, 0.0f, 1.0f),
+                                vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+        new metal(vec4(0.8f, 0.8f, 0.8f, 1.0f), 3.0f)
+    ));
+
+    //left
+    d_list->add(new triangle(   vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(3.0f, -3.0f, 3.0f, 1.0f),
+                                vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f),
+        new lambertian(vec4(0.8f, 0.5f, 0.0f, 1.0f))
+    ));
+    d_list->add(new triangle(   vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(3.0f, -3.0f, 3.0f, 1.0f),
+                                vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f),
+        new lambertian(vec4(0.8f, 0.5f, 0.0f, 1.0f))
+    ));
+
+    //right
+    d_list->add(new triangle(   vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(3.0f, 3.0f, 3.0f, 1.0f),
+                                vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f),
+        new lambertian(vec4(0.0f, 0.4f, 0.8f, 1.0f))
+    ));
+    d_list->add(new triangle(   vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(3.0f, 3.0f, 3.0f, 1.0f),
+                                vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f),
+        new lambertian(vec4(0.0f, 0.4f, 0.8f, 1.0f))
+    ));
+
+
+    d_list->add(new sphere(vec4( 1.5f, -1.5f, 0.5f, 1.0f), 0.5, new emitter(vec4(0.99f, 0.8f, 0.2f, 1.0f))));
+    d_list->add(new sphere(vec4( 1.5f,  1.5f, 0.5f, 1.0f), 0.5, new emitter(vec4(0.2f, 0.8f, 0.99f, 1.0f))));
+    d_list->add(new sphere(vec4(-1.5f, -2.5f, 0.5f, 1.0f), 0.5, new emitter(vec4(0.99f, 0.4f, 0.85f, 1.0f))));
+    d_list->add(new sphere(vec4(-1.5f,  2.5f, 0.5f, 1.0f), 0.5, new emitter(vec4(0.4f, 0.99f, 0.5f, 1.0f))));
+
+    d_list->add(new sphere(vec4(-0.5f, -0.5f, 1.5f, 1.0f), 0.5, new emitter(vec4(1.0f, 1.0f, 1.0f, 1.0f))));
+    d_list->add(new sphere(vec4(-0.5f, 0.5f, 1.5f, 1.0f), 0.5, new emitter(vec4(0.0f, 1.0f, 1.0f, 1.0f))));
+    *cam = camera(ray(vec4(2.0f, 0.0f, 0.5f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f)), float(width) / float(height));
 }
 
 __global__ void free_world(hitableList* d_list) {
@@ -118,8 +171,8 @@ int testCuda()
     vec4* frameBuffer;
     checkCudaErrors(cudaMallocManaged((void **)&frameBuffer, frameBufferSize));
 
-    size_t xThreads = 24;
-    size_t yThreads = 24;
+    size_t xThreads = 8;
+    size_t yThreads = 8;
 
     curandState* d_rand_state;
     checkCudaErrors(cudaMalloc((void**)&d_rand_state, width * height * sizeof(curandState)));

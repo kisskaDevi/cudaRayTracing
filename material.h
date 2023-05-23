@@ -8,19 +8,15 @@
 namespace {
     __device__ vec4 getHorizontal(const vec4& d) {
         float D = std::sqrt(d.x() * d.x() + d.y() * d.y());
-        float x = d.y();
-        float y = -d.x();
-        return vec4(x, y, 0.0f, 0.0f) / D;
+        return D > 0.0f ? vec4(d.y(), -d.x(), 0.0f, 0.0f) / D : vec4(1.0f, 0.0, 0.0f, 0.0f);
     }
 
     __device__ vec4 getVertical(const vec4& d) {
         float z = std::sqrt(d.x() * d.x() + d.y() * d.y());
-        float x = -d.z() * d.x() / z;
-        float y = -d.z() * d.y() / z;
-        return vec4(x, y, z, 0.0f) / d.length();
+        return z > 0.0f ? vec4(-d.z() * d.x() / z, -d.z() * d.y() / z, z, 0.0f) / d.length() : vec4(0.0f, 1.0, 0.0f, 0.0f);
     }
 
-    __device__ vec4 random_in_unit_sphere(const vec4& norm, const vec4& direction, const float& angle, curandState* local_rand_state) {
+    __device__ vec4 random_in_unit_sphere(const vec4& direction, const float& angle, curandState* local_rand_state) {
         float phi = 2 * pi * curand_uniform(local_rand_state);
         float theta = angle * curand_uniform(local_rand_state);
 
@@ -48,8 +44,8 @@ private:
 public:
     __device__ lambertian(const vec4& a) : albedo(a) {}
     __device__ virtual vec4 scatter(const ray& r, const vec4& norm, curandState* local_rand_state) const override {
-        vec4 scattered = random_in_unit_sphere(norm, norm, angle, local_rand_state);
-        return (dot(norm, scattered) > 0 ? 1.0f : -1.0f) * scattered;
+        vec4 scattered = random_in_unit_sphere(norm, angle, local_rand_state);
+        return (dot(norm, scattered) > 0.0f ? 1.0f : -1.0f) * scattered;
     }
     __device__ virtual vec4 getAlbedo() const override {
         return albedo;
@@ -68,7 +64,7 @@ public:
     __device__ metal(const vec4& a, float f) : albedo(a), fuzz(f){}
     __device__ vec4 scatter(const ray& r, const vec4& norm, curandState* local_rand_state) const override {
         vec4 reflect = normal(r.getDirection() + 2.0f * std::abs(dot(r.getDirection(), norm)) * norm);
-        vec4 scattered = reflect + fuzz * random_in_unit_sphere(norm, reflect, angle, local_rand_state);
+        vec4 scattered = reflect + fuzz * random_in_unit_sphere(reflect, angle, local_rand_state);
         return (dot(scattered, norm) > 0.0f ? 1.0f : 0.0f) * scattered;
     }
     __device__ virtual vec4 getAlbedo() const override {
