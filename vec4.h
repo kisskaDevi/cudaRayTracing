@@ -35,6 +35,16 @@ public:
     __host__ __device__ inline float length() const { return sqrt(x() * x() + y() * y() + z() * z() + w() * w()); }
     __host__ __device__ inline float length2() const { return x() * x() + y() * y() + z() * z() + w() * w(); }
     __host__ __device__ inline void normalize();
+
+    __host__ __device__ static vec4 getHorizontal(const vec4& d) {
+        float D = std::sqrt(d.x() * d.x() + d.y() * d.y());
+        return D > 0.0f ? vec4(d.y() / D, -d.x() / D, 0.0f, 0.0f) : vec4(1.0f, 0.0, 0.0f, 0.0f);
+    }
+
+    __host__ __device__ static vec4 getVertical(const vec4& d) {
+        float z = std::sqrt(d.x() * d.x() + d.y() * d.y());
+        return z > 0.0f ? vec4(-d.z() * d.x() / z / d.length(), -d.z() * d.y() / z / d.length(), z, 0.0f) : vec4(0.0f, 1.0, 0.0f, 0.0f);
+    }
 };
 
 inline std::ostream& operator<<(std::ostream& os, const vec4& t) {

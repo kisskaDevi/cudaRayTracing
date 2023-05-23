@@ -171,8 +171,8 @@ int testCuda()
     vec4* frameBuffer;
     checkCudaErrors(cudaMallocManaged((void **)&frameBuffer, frameBufferSize));
 
-    size_t xThreads = 8;
-    size_t yThreads = 8;
+    size_t xThreads = 4;
+    size_t yThreads = 4;
 
     curandState* d_rand_state;
     checkCudaErrors(cudaMalloc((void**)&d_rand_state, width * height * sizeof(curandState)));
@@ -194,7 +194,7 @@ int testCuda()
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    render<<<blocks, threads>>>(frameBuffer, width, height, 10, 100, 10, cam, d_list, d_rand_state);
+    render<<<blocks, threads>>>(frameBuffer, width, height, 5, 100, 10, cam, d_list, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 

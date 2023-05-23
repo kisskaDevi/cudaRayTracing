@@ -14,20 +14,6 @@ private:
     float focus{ 0.049f };
     float apertura{ 0.005f };
 
-    __host__ __device__ vec4 getHorizontal(const vec4& d) {
-        float D = std::sqrt(d.x() * d.x() + d.y() * d.y());
-        float x = d.y();
-        float y = -d.x();
-        return vec4(x, y, 0.0f, 0.0f) / D;
-    }
-
-    __host__ __device__ vec4 getVertical(const vec4& d) {
-        float z = std::sqrt(d.x() * d.x() + d.y() * d.y());
-        float x = -d.z() * d.x() / z;
-        float y = -d.z() * d.y() / z;
-        return vec4(x, y, z, 0.0f) / d.length();
-    }
-
 public:
     __host__ __device__ camera(
         const ray& viewRay,
@@ -42,14 +28,14 @@ public:
         focus(focus),
         apertura(apertura)
     {
-        horizontal = aspect * getHorizontal(viewRay.getDirection());
-        vertical = getVertical(viewRay.getDirection());
+        horizontal = aspect * vec4::getHorizontal(viewRay.getDirection());
+        vertical = vec4::getVertical(viewRay.getDirection());
     }
 
     __host__ __device__ camera(const ray& viewRay, float aspect) : viewRay(viewRay)
     {
-        horizontal = aspect * getHorizontal(viewRay.getDirection());
-        vertical = getVertical(viewRay.getDirection());
+        horizontal = aspect * vec4::getHorizontal(viewRay.getDirection());
+        vertical = vec4::getVertical(viewRay.getDirection());
     }
 
     __device__ ray getPixelRay(float u, float v, curandState* local_rand_state) {

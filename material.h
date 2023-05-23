@@ -6,22 +6,12 @@
 #define pi 3.14159265358979323846
 
 namespace {
-    __device__ vec4 getHorizontal(const vec4& d) {
-        float D = std::sqrt(d.x() * d.x() + d.y() * d.y());
-        return D > 0.0f ? vec4(d.y(), -d.x(), 0.0f, 0.0f) / D : vec4(1.0f, 0.0, 0.0f, 0.0f);
-    }
-
-    __device__ vec4 getVertical(const vec4& d) {
-        float z = std::sqrt(d.x() * d.x() + d.y() * d.y());
-        return z > 0.0f ? vec4(-d.z() * d.x() / z, -d.z() * d.y() / z, z, 0.0f) / d.length() : vec4(0.0f, 1.0, 0.0f, 0.0f);
-    }
-
     __device__ vec4 random_in_unit_sphere(const vec4& direction, const float& angle, curandState* local_rand_state) {
         float phi = 2 * pi * curand_uniform(local_rand_state);
         float theta = angle * curand_uniform(local_rand_state);
 
-        vec4 horizontal = getHorizontal(direction);
-        vec4 vertical = getVertical(direction);
+        vec4 horizontal = vec4::getHorizontal(direction);
+        vec4 vertical = vec4::getVertical(direction);
         float x = std::sin(theta) * std::cos(phi);
         float y = std::sin(theta) * std::sin(phi);
         float z = std::cos(theta);
