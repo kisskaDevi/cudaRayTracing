@@ -15,6 +15,7 @@ struct hitRecord
 
 class hitable {
 public:
+    hitable* next{ nullptr };
     __device__ virtual bool hit(const ray& r, float tMin, float tMax, hitRecord& rec) const = 0;
 };
 

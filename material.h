@@ -10,13 +10,11 @@ namespace {
         float phi = 2 * pi * curand_uniform(local_rand_state);
         float theta = angle * curand_uniform(local_rand_state);
 
-        vec4 horizontal = vec4::getHorizontal(direction);
-        vec4 vertical = vec4::getVertical(direction);
         float x = std::sin(theta) * std::cos(phi);
         float y = std::sin(theta) * std::sin(phi);
         float z = std::cos(theta);
 
-        return normal(x * horizontal + y * vertical + z * direction);
+        return normal(x * vec4::getHorizontal(direction) + y * vec4::getVertical(direction) + z * direction);
     }
 }
 
