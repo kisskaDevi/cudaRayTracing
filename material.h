@@ -3,21 +3,6 @@
 
 #include "ray.h"
 
-#define pi 3.14159265358979323846
-
-namespace {
-    __device__ vec4 random_in_unit_sphere(const vec4& direction, const float& angle, curandState* local_rand_state) {
-        float phi = 2 * pi * curand_uniform(local_rand_state);
-        float theta = angle * curand_uniform(local_rand_state);
-
-        float x = std::sin(theta) * std::cos(phi);
-        float y = std::sin(theta) * std::sin(phi);
-        float z = std::cos(theta);
-
-        return normal(x * vec4::getHorizontal(direction) + y * vec4::getVertical(direction) + z * direction);
-    }
-}
-
 class material {
 public:
 	__device__ virtual vec4 scatter(const ray& r, const vec4& normal, curandState* local_rand_state) const = 0;

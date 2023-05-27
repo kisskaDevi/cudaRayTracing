@@ -7,7 +7,6 @@ class hitableList {
 private:
     hitable* head{ nullptr };
     hitable* tail{ nullptr };
-    size_t listSize{ 0 };
 
     __device__ void addSingle(hitable* object);
 public:
@@ -38,7 +37,6 @@ __device__ void hitableList::addSingle(hitable* object) {
         tail = object;
         head->next = tail;
     }
-    listSize++;
 }
 
 template<class... T>

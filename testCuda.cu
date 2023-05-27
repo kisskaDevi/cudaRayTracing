@@ -23,18 +23,35 @@ void check_cuda(cudaError_t result, char const* const func, const char* const fi
 
 __device__ vec4 color(ray r, size_t maxIterations, hitableList* list, curandState* local_rand_state) {
     vec4 color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    bool lightFound = false;
+    hitRecord rec;
     for (; maxIterations > 0; maxIterations--) {
-        hitRecord rec;
-        if (!lightFound && r.getDirection().length2() != 0.0f && list->hit(r, 0.001f, FLT_MAX, rec)) {
+        if (r.getDirection().length2() != 0.0f && list->hit(r, 0.001f, FLT_MAX, rec)) {
             color = min(rec.mat->getAlbedo(), color);
             r = ray(rec.point, rec.mat->scatter(r, rec.normal, local_rand_state));
-            lightFound |= rec.mat->lightFound();
         } else {
             break;
         }
     }
-    return lightFound ? color : vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    return (rec.mat && rec.mat->lightFound()) ? color : vec4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+__device__ vec4 bloom(ray r, size_t maxIterations, hitableList* list, curandState* local_rand_state) {
+    vec4 color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    hitRecord rec;
+    r = ray(r.getOrigin(), random_in_unit_sphere(r.getDirection(), 0.05 * pi, local_rand_state));
+
+    for (; maxIterations > 0; maxIterations--) {
+        if (r.getDirection().length2() != 0.0f && list->hit(r, 0.001f, FLT_MAX, rec)) {
+            color = min(rec.mat->getAlbedo(), color);
+            r = ray(rec.point, rec.mat->scatter(r, rec.normal, local_rand_state));
+        } else {
+            break;
+        }
+    }
+    return  (rec.mat && rec.mat->lightFound()) &&
+            (color.x() >= 0.9f || color.y() >= 0.9f || color.z() >= 0.9f)
+            ? color
+            : vec4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 __global__ void render_init(int max_x, int max_y, curandState* rand_state) {
@@ -46,24 +63,71 @@ __global__ void render_init(int max_x, int max_y, curandState* rand_state) {
     curand_init(1984, pixel_index, 0, &rand_state[pixel_index]);
 }
 
-__global__ void render(vec4* frameBuffer, size_t max_x, size_t max_y, size_t hitCount, size_t raysCount, size_t samplesCount, camera* cam, hitableList* list, curandState* rand_state){
+__global__ void render(
+    vec4* frameBuffer,
+    size_t max_x,
+    size_t max_y,
+    size_t hitCount,
+    size_t raysCount,
+    size_t samplesCount,
+    camera* cam,
+    hitableList* list,
+    curandState* rand_state)
+{
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
+
+    float u = 2.0f * float(i) / float(max_x) - 1.0f;
+    float v = 2.0f * float(j) / float(max_y) - 1.0f;
+
     if ((i < max_x) && (j < max_y)) {
         int pixel_index = j * max_x + i;
         curandState local_rand_state = rand_state[pixel_index];
-        for (size_t sampleIndex = 0; sampleIndex < samplesCount; sampleIndex++) {
-            float u = 2.0f * float(i) / float(max_x) - 1.0f;
-            float v = 2.0f * float(j) / float(max_y) - 1.0f;
 
+        for (size_t sampleIndex = 0; sampleIndex < samplesCount; sampleIndex++) {
             size_t hitCounter = 0;
-            vec4 col = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+            vec4 sampleColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
             for (size_t rayIndex = 0 ; rayIndex < raysCount; rayIndex++) {
-                col += color(cam->getPixelRay(u, v, &local_rand_state), hitCount, list, &local_rand_state);
-                hitCounter += col.length2() > 0.0f ? 1 : 0;
+                vec4 rayColor = color(cam->getPixelRay(u, v, &local_rand_state), hitCount, list, &local_rand_state);
+                if (rayColor.length2() > 0.0f) {
+                    sampleColor += rayColor;
+                    hitCounter++;
+                }
             }
-            col /= hitCounter;
-            frameBuffer[pixel_index] += col;
+            frameBuffer[pixel_index] += sampleColor / (hitCounter > 0 ? hitCounter : 1.0f);
+        }
+        frameBuffer[pixel_index] /= float(samplesCount);
+    }
+}
+
+__global__ void renderBloom(
+    vec4* frameBuffer,
+    size_t max_x,
+    size_t max_y,
+    size_t hitCount,
+    size_t raysCount,
+    size_t samplesCount,
+    camera* cam,
+    hitableList* list,
+    curandState* rand_state)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+
+    float u = 2.0f * float(i) / float(max_x) - 1.0f;
+    float v = 2.0f * float(j) / float(max_y) - 1.0f;
+
+    if ((i < max_x) && (j < max_y)) {
+        int pixel_index = j * max_x + i;
+        curandState local_rand_state = rand_state[pixel_index];
+
+        for (size_t sampleIndex = 0; sampleIndex < samplesCount; sampleIndex++) {
+            vec4 sampleColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+            for (size_t rayIndex = 0; rayIndex < raysCount; rayIndex++) {
+                vec4 rayColor = bloom(cam->getPixelRay(u, v, &local_rand_state), hitCount, list, &local_rand_state);
+                sampleColor += rayColor;
+            }
+            frameBuffer[pixel_index] += sampleColor / raysCount;
         }
         frameBuffer[pixel_index] /= float(samplesCount);
     }
@@ -85,10 +149,10 @@ __global__ void create_world(camera* cam, int width, int height, hitableList* d_
         //top
         new triangle(   vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(3.0f, -3.0f, 3.0f, 1.0f),
                         vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f),
-                        new emitter(vec4(0.8f, 0.8f, 0.8f, 1.0f))),
+                        new emitter(vec4(0.9f, 0.9f, 0.9f, 1.0f))),
         new triangle(   vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(3.0f, -3.0f, 3.0f, 1.0f),
                         vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f),
-                        new emitter(vec4(0.8f, 0.8f, 0.8f, 1.0f))),
+                        new emitter(vec4(0.9f, 0.9f, 0.9f, 1.0f))),
         //back
         new triangle(   vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(-3.0f, 3.0f, 3.0f, 1.0f),
                         vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f),
@@ -134,19 +198,41 @@ __global__ void free_world(hitableList* d_list) {
     delete d_list;
 }
 
-void outImage(vec4* frameBuffer, size_t width, size_t height, const std::string& filename) {
+void outPPMImage(vec4* frameBuffer, vec4* bloomBuffer, size_t width, size_t height, const std::string& filename) {
     std::ofstream image(filename);
     image << "P3\n" << width << " " << height << "\n255\n";
     for (int j = 0; j < height; j++) {
         for (int i = width - 1; i >= 0; i--) {
             size_t pixel_index = j * width + i;
-            image   << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].r()) << " "
-                    << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].g()) << " "
-                    << static_cast<uint32_t>(255.99f * frameBuffer[pixel_index].b()) << "\n";
+
+            vec4 color = vec4(  frameBuffer[pixel_index].r() + bloomBuffer[pixel_index].r(),
+                                frameBuffer[pixel_index].g() + bloomBuffer[pixel_index].g(),
+                                frameBuffer[pixel_index].b() + bloomBuffer[pixel_index].b(), 1.0f);
+            float max = std::max(color.r(), std::max(color.g(), color.b()));
+            if (max > 1.0f) {
+                color /= max;
+            }
+
+            image   << static_cast<uint32_t>(255.99f * color.r()) << " "
+                    << static_cast<uint32_t>(255.99f * color.g()) << " "
+                    << static_cast<uint32_t>(255.99f * color.b()) << "\n";
         }
     }
     image.close();
 }
+
+void outPGMImage(vec4* frameBuffer, size_t width, size_t height, const std::string& filename) {
+    std::ofstream image(filename);
+    image << "P2\n" << width << " " << height << "\n255\n";
+    for (int j = 0; j < height; j++) {
+        for (int i = width - 1; i >= 0; i--) {
+            size_t pixel_index = j * width + i;
+            image << static_cast<uint32_t>(255.99f * (frameBuffer[pixel_index].r() + frameBuffer[pixel_index].g() + frameBuffer[pixel_index].b())/3) << "\n";
+        }
+    }
+    image.close();
+}
+
 
 int testCuda()
 {
@@ -159,6 +245,8 @@ int testCuda()
 
     vec4* frameBuffer;
     checkCudaErrors(cudaMallocManaged((void**)&frameBuffer, frameBufferSize));
+    vec4* bloomBuffer;
+    checkCudaErrors(cudaMallocManaged((void**)&bloomBuffer, frameBufferSize));
     curandState* d_rand_state;
     checkCudaErrors(cudaMalloc((void**)&d_rand_state, width * height * sizeof(curandState)));
     camera* cam;
@@ -183,9 +271,13 @@ int testCuda()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
+    renderBloom << <blocks, threads >> > (bloomBuffer, width, height, 8, 200, 4, cam, d_list, d_rand_state);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
     std::cout << "render time = " << std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start).count() << " ms" << std::endl;
 
-    outImage(frameBuffer, width, height, "image.ppm");
+    outPPMImage(frameBuffer, bloomBuffer, width, height, "image.ppm");
 
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -195,6 +287,7 @@ int testCuda()
     checkCudaErrors(cudaFree(d_rand_state));
     checkCudaErrors(cudaFree(d_list));
     checkCudaErrors(cudaFree(frameBuffer));
+    checkCudaErrors(cudaFree(bloomBuffer));
 
     return 0;
 }
