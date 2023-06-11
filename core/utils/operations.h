@@ -10,18 +10,21 @@ namespace Buffer {
 
 namespace Image{
 
-    void clear(
+    __global__ void clear(
         vec4*                   image,
-        size_t                  size);
+        size_t                  width,
+        size_t                  height);
 
-    void combine(
+    __global__ void combine(
         vec4*                   dst,
         vec4*                   src,
-        size_t                  size);
+        size_t                  width,
+        size_t                  height);
 
-    void normalize(
+    __global__ void normalize(
         vec4*                   frameBuffer,
-        size_t                  size);
+        size_t                  width,
+        size_t                  height);
 
     void outPPM(
         vec4*                   frameBuffer,

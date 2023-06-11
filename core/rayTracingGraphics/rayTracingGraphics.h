@@ -48,6 +48,12 @@ public:
 	inline vec4* getSwapChain() {
 		return swapChain;
 	}
+	size_t getWidth() const {
+		return width;
+	}
+	size_t getHeight() const {
+		return height;
+	}
 };
 
 #endif // !RAYTRACINGGRAPHICS

@@ -10,9 +10,7 @@
 class graphicsManager
 {
 private:
-	size_t width;
-	size_t height;
-	size_t xThreads{ 4 };
+	size_t xThreads{ 8 };
 	size_t yThreads{ 4 };
 
 	curandState* randState{ nullptr };
@@ -21,9 +19,12 @@ private:
 
 public:
 	graphicsManager(){}
+	graphicsManager(rayTracingGraphics* graphics) {
+		createInstance(graphics);
+	}
 	void destroy();
 
-	void createInstance(size_t width, size_t height, rayTracingGraphics* graphics);
+	void createInstance(rayTracingGraphics* graphics);
 
 	void drawFrame(hitableList* list);
 };

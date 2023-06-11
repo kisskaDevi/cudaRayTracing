@@ -10,14 +10,19 @@ namespace {
     }
 }
 
+struct vertex {
+    vec4 point{0.0f, 0.0f, 0.0f, 1.0f};
+    vec4 normal{ 0.0f, 0.0f, 0.0f, 0.0f };
+    vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
+    __host__ __device__ vertex() {}
+    __host__ __device__ vertex(vec4 point, vec4 normal, vec4 color):
+        point(point), normal(normal), color(color)
+    {}
+};
+
 class triangle : public hitable {
 private:
-    vec4 v0{ 0.0f, 0.0f, 0.0f, 1.0f };
-    vec4 v1{ 0.0f, 0.0f, 0.0f, 1.0f };
-    vec4 v2{ 0.0f, 0.0f, 0.0f, 1.0f };
-    vec4 n0{ 0.0f, 0.0f, 0.0f, 0.0f };
-    vec4 n1{ 0.0f, 0.0f, 0.0f, 0.0f };
-    vec4 n2{ 0.0f, 0.0f, 0.0f, 0.0f };
+    vertex v0, v1, v2;
     material* matptr{ nullptr };
 
 public:
@@ -28,9 +33,8 @@ public:
             delete matptr;
         }
     }
-    __host__ __device__ triangle(const vec4& v0, const vec4& v1, const vec4& v2, material* matptr) : v0(v0), v1(v1), v2(v2), matptr(matptr){};
-    __host__ __device__ triangle(const vec4& v0, const vec4& v1, const vec4& v2, const vec4& n0, const vec4& n1, const vec4& n2, material* matptr)
-        : v0(v0), v1(v1), v2(v2), n0(n0), n1(n1), n2(n2), matptr(matptr) {};
+    __host__ __device__ triangle(const vertex& v0, const vertex& v1, const vertex& v2, material* matptr)
+        : v0(v0), v1(v1), v2(v2), matptr(matptr) {};
     __device__ virtual bool hit(const ray& r, float tMin, float tMax, hitRecord& rec) const override;
 };
 

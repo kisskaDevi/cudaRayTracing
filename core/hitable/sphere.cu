@@ -20,6 +20,7 @@ __device__ bool sphere::hit(const ray& r, float tMin, float tMax, hitRecord& rec
             rec.t = temp;
             rec.point = r.point(rec.t);
             rec.normal = (rec.point - center) / radius;
+            rec.color = color;
             rec.mat = matptr;
         }
     }

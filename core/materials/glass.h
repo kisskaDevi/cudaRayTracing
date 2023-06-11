@@ -5,12 +5,11 @@
 
 class glass : public material {
 private:
-    vec4 albedo{ 0.0f, 0.0f, 0.0f, 0.0f };
     float refractiveIndex{ 1.0f };
     float refractProb{ 1.0f };
 
 public:
-    __host__ __device__ glass(const vec4& a, const float& refractiveIndex, const float& refractProb) : albedo(a), refractiveIndex(refractiveIndex), refractProb(refractProb) {}
+    __host__ __device__ glass(const float& refractiveIndex, const float& refractProb) : refractiveIndex(refractiveIndex), refractProb(refractProb) {}
     __device__ vec4 scatter(const ray& r, const vec4& norm, curandState* local_rand_state) const override {
         vec4 scattered = vec4(0.0f, 0.0f, 0.0f, 0.0f);
         if (curand_uniform(local_rand_state) <= refractProb) {
@@ -32,9 +31,6 @@ public:
         }
 
         return scattered;
-    }
-    __device__ virtual vec4 getAlbedo() const override {
-        return albedo;
     }
     __device__ bool lightFound() const override {
         return false;
