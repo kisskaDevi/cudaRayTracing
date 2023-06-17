@@ -4,7 +4,7 @@
 void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);
 
 namespace Buffer {
-    vec4* create(
+    void* create(
         size_t                  size);
 }
 

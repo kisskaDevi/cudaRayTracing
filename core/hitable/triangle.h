@@ -2,6 +2,7 @@
 #define TRIANGLE
 
 #include "hitable.h"
+#include "buffer.h"
 
 namespace {
     __device__ float det3(const vec4& a, const vec4& b, const vec4& c) {
@@ -10,7 +11,7 @@ namespace {
     }
 }
 
-struct vertex {
+struct alignas(64) vertex {
     vec4 point{0.0f, 0.0f, 0.0f, 1.0f};
     vec4 normal{ 0.0f, 0.0f, 0.0f, 0.0f };
     vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
@@ -20,9 +21,10 @@ struct vertex {
     {}
 };
 
-class triangle : public hitable {
+class alignas(64) triangle : public hitable {
 private:
-    vertex v0, v1, v2;
+    size_t index0, index1, index2;
+    vertex* vertexBuffer{ nullptr };
     material* matptr{ nullptr };
 
 public:
@@ -33,8 +35,8 @@ public:
             delete matptr;
         }
     }
-    __host__ __device__ triangle(const vertex& v0, const vertex& v1, const vertex& v2, material* matptr)
-        : v0(v0), v1(v1), v2(v2), matptr(matptr) {};
+    __host__ __device__ triangle(const size_t& i0, const size_t& i1, const size_t& i2, vertex* vertexBuffer, material* matptr)
+        : index0(i0), index1(i1), index2(i2), vertexBuffer(vertexBuffer), matptr(matptr) {};
     __device__ virtual bool hit(const ray& r, float tMin, float tMax, hitRecord& rec) const override;
 };
 

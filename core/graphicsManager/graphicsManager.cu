@@ -28,11 +28,12 @@ void graphicsManager::createInstance(rayTracingGraphics* graphics)
 }
 
 void graphicsManager::drawFrame(hitableList* list) {
-	dim3 blocks(graphics->getWidth() / xThreads + 1, graphics->getHeight() / yThreads + 1);
-	dim3 threads(xThreads, yThreads);
+	dim3 blocks(static_cast<unsigned int>(graphics->getWidth() / xThreads + 1), static_cast<unsigned int>(graphics->getHeight() / yThreads + 1));
+	dim3 threads(static_cast<unsigned int>(xThreads), static_cast<unsigned int>(yThreads));
 
-	srand(time(0));
-	initRandomState<<<blocks, threads>>>(rand(), graphics->getWidth(), graphics->getHeight(), randState);
+	srand(static_cast<unsigned int>(time(0)));
+	initRandomState<<<blocks, threads>>>(rand(), static_cast<int>(graphics->getWidth()), static_cast<int>(graphics->getHeight()), randState);
+
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <curand_kernel.h>
 
 #include "triangle.h"
@@ -17,7 +18,7 @@
 #include "rayTracingGraphics.h"
 #include "graphicsManager.h"
 
-__global__ void createWorld(hitableList* list) {
+__global__ void createWorld(vertex* vertexBuffer, hitableList* list) {
     list->add(
         new sphere(     vec4(0.0f, 0.0f, 0.5f, 1.0f),
                         0.5,
@@ -30,88 +31,84 @@ __global__ void createWorld(hitableList* list) {
         new sphere(     vec4(0.0f, -1.0f, 0.5f, 1.0f),
                         0.5,
                         vec4(0.9f, 0.9f, 0.9f, 1.0f),
-                        new glass(1.5f, 0.96f))
+                        new glass(1.5f, 0.96f)),
+        new sphere(     vec4(0.0f, -1.0f, 0.5f, 1.0f),
+                        0.45,
+                        vec4(0.9f, 0.9f, 0.9f, 1.0f),
+                        new glass(1.0f / 1.5f, 0.96f))
     );
 
     list->add(
-        //down
-        new triangle(   vertex(vec4(-3.0f, -3.0f,  0.0f,  1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.6f, 0.6f, 0.8f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  0.0f,  1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.6f, 0.6f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  0.0f,  1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.6f, 0.6f, 0.8f, 1.0f)),
-                        new lambertian(pi)),
-        new triangle(   vertex(vec4( 3.0f,  3.0f,  0.0f,  1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.6f, 0.6f, 0.8f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  0.0f,  1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.6f, 0.6f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  0.0f,  1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.6f, 0.6f, 0.8f, 1.0f)),
-                        new lambertian(pi)),
-        //top
-        new triangle(   vertex(vec4(-3.0f, -3.0f,  3.0f,  1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  3.0f,  1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  3.0f,  1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f)),
-                        new emitter()),
-        new triangle(   vertex(vec4( 3.0f,  3.0f,  3.0f,  1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  3.0f,  1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  3.0f,  1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f)),
-                        new emitter()),
-        //back
-        new triangle(   vertex(vec4(-3.0f, -3.0f,  0.0f,  1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.2f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  0.0f,  1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.8f, 0.2f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  3.0f,  1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.2f, 0.8f, 1.0f)),
-                        new metal(3.0f, pi)),
-        new triangle(   vertex(vec4(-3.0f, -3.0f,  3.0f,  1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.8f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  3.0f,  1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.2f, 0.8f, 1.0f)),
-                        vertex(vec4(-3.0f, -3.0f,  0.0f,  1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.2f, 1.0f)),
-                        new metal(3.0f, pi)),
-        //front
-        new triangle(   vertex(vec4( 3.0f, -3.0f,  0.0f,  1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f,  3.0f,  0.0f,  1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f,  3.0f,  3.0f,  1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f)),
-                        new metal(3.0f, 0.3f * pi)),
-        new triangle(   vertex(vec4( 3.0f, -3.0f,  3.0f,  1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f,  3.0f,  3.0f,  1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  0.0f,  1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f)),
-                        new metal(3.0f, 0.3f * pi)),
-        //left
-        new triangle(   vertex(vec4(-3.0f, -3.0f,  0.0f,  1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  0.0f,  1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  3.0f,  1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f)),
-                        new lambertian(pi)),
-        new triangle(   vertex(vec4(-3.0f, -3.0f,  0.0f,  1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f)),
-                        vertex(vec4(-3.0f, -3.0f,  3.0f,  1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f)),
-                        vertex(vec4( 3.0f, -3.0f,  3.0f,  1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f)),
-                        new lambertian(pi)),
-        //right
-        new triangle(   vertex(vec4(-3.0f,  3.0f,  0.0f,  1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f,  3.0f,  0.0f,  1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f,  3.0f,  3.0f,  1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f)),
-                        new lambertian(0.3f * pi)),
-        new triangle(   vertex(vec4(-3.0f,  3.0f,  0.0f,  1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f)),
-                        vertex(vec4(-3.0f,  3.0f,  3.0f,  1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f)),
-                        vertex(vec4( 3.0f,  3.0f,  3.0f,  1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f)),
-                        new lambertian(0.3f * pi))
+        /*down*/ new triangle( 0, 1, 2, vertexBuffer, new lambertian(pi)), new triangle(3, 1, 2, vertexBuffer, new lambertian(pi)),
+        /*top*/ new triangle( 4, 5, 6, vertexBuffer, new metal(3.0f, pi)), new triangle( 7, 5, 6, vertexBuffer, new metal(3.0f, pi)),
+        /*back*/ new triangle( 8, 9, 10, vertexBuffer, new metal(3.0f, pi)), new triangle( 11, 10, 8, vertexBuffer, new metal(3.0f, pi)),
+        /*front*/ new triangle( 12, 13, 14, vertexBuffer, new metal(3.0f, 0.3f * pi)), new triangle( 15, 14, 12, vertexBuffer, new metal(3.0f, 0.3f * pi)),
+        /*left*/ new triangle( 16, 17, 18, vertexBuffer, new lambertian(pi)), new triangle( 16, 19, 18, vertexBuffer, new lambertian(pi)),
+        /*right*/ new triangle( 20, 21, 22, vertexBuffer, new lambertian(0.3f * pi)), new triangle( 20, 23, 22, vertexBuffer, new lambertian(0.3f * pi))
     );
 
-    //d_list->add(new sphere(vec4( 1.5f, -1.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.99f, 0.8f, 0.2f, 1.0f))));
-    //d_list->add(new sphere(vec4( 1.5f,  1.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.2f, 0.8f, 0.99f, 1.0f))));
-    //d_list->add(new sphere(vec4(-1.5f, -1.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.99f, 0.4f, 0.85f, 1.0f))));
-    //d_list->add(new sphere(vec4(-1.5f,  1.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.4f, 0.99f, 0.5f, 1.0f))));
-    //d_list->add(new sphere(vec4(-0.5f, -0.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.65f, 0.0f, 0.91f, 1.0f))));
-    //d_list->add(new sphere(vec4( 0.5f,  0.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.8f, 0.7f, 0.99f, 1.0f))));
-    //d_list->add(new sphere(vec4(-0.5f,  0.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.59f, 0.5f, 0.9f, 1.0f))));
-    //d_list->add(new sphere(vec4( 0.5f, -0.5f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.9f, 0.99f, 0.5f, 1.0f))));
-    //d_list->add(new sphere(vec4(-1.0f, -1.0f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.65f, 0.0f, 0.91f, 1.0f))));
-    //d_list->add(new sphere(vec4( 1.0f,  1.0f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.8f, 0.9f, 0.9f, 1.0f))));
-    //d_list->add(new sphere(vec4(-1.0f,  1.0f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.9f, 0.5f, 0.5f, 1.0f))));
-    //d_list->add(new sphere(vec4( 1.0f, -1.0f, 0.2f, 1.0f), 0.2, new emitter(vec4(0.5f, 0.59f, 0.9f, 1.0f))));
+    list->add(
+        new sphere(vec4( 1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.80f, 0.20f, 1.00f), new emitter()),
+        new sphere(vec4( 1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.20f, 0.80f, 0.99f, 1.00f), new emitter()),
+        new sphere(vec4(-1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.40f, 0.85f, 1.00f), new emitter()),
+        new sphere(vec4(-1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.40f, 0.99f, 0.50f, 1.00f), new emitter()),
+        new sphere(vec4(-0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), new emitter()),
+        new sphere(vec4( 0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.70f, 0.99f, 1.00f), new emitter()),
+        new sphere(vec4(-0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.59f, 0.50f, 0.90f, 1.00f), new emitter()),
+        new sphere(vec4( 0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.99f, 0.50f, 1.00f), new emitter()),
+        new sphere(vec4(-1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), new emitter()),
+        new sphere(vec4( 1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.90f, 0.90f, 1.00f), new emitter()),
+        new sphere(vec4(-1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.50f, 0.50f, 1.00f), new emitter()),
+        new sphere(vec4( 1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.50f, 0.59f, 0.90f, 1.00f), new emitter())
+    );
+}
+
+std::vector<vertex> createBox() {
+    std::vector<vertex> vertexBuffer(24);
+
+    vertexBuffer[0] = vertex(vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
+    vertexBuffer[1] = vertex(vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
+    vertexBuffer[2] = vertex(vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
+    vertexBuffer[3] = vertex(vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
+
+    vertexBuffer[4] = vertex(vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
+    vertexBuffer[5] = vertex(vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
+    vertexBuffer[6] = vertex(vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
+    vertexBuffer[7] = vertex(vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
+
+    vertexBuffer[8] = vertex(vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.2f, 1.0f));
+    vertexBuffer[9] = vertex(vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.8f, 0.2f, 1.0f));
+    vertexBuffer[10] = vertex(vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.2f, 0.8f, 1.0f));
+    vertexBuffer[11] = vertex(vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.8f, 1.0f));
+
+    vertexBuffer[12] = vertex(vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
+    vertexBuffer[13] = vertex(vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
+    vertexBuffer[14] = vertex(vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
+    vertexBuffer[15] = vertex(vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
+
+    vertexBuffer[16] = vertex(vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
+    vertexBuffer[17] = vertex(vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
+    vertexBuffer[18] = vertex(vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
+    vertexBuffer[19] = vertex(vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
+
+    vertexBuffer[20] = vertex(vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
+    vertexBuffer[21] = vertex(vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
+    vertexBuffer[22] = vertex(vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
+    vertexBuffer[23] = vertex(vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
+
+    return vertexBuffer;
 }
 
 int testCuda()
 {
     size_t width = 1920, height = 1080;
 
-    camera* cam = camera::create(ray(vec4(2.0f, 0.0f, 0.5f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f)), float(width) / float(height));
+    buffer<vertex> vertexBuffer = buffer<vertex>(24, createBox().data());
+
+    camera* cam = camera::create(ray(vec4(2.0f, -2.0f, 0.5f, 1.0f), vec4(-1.0f, 1.0f, 0.0f, 0.0f)), float(width) / float(height));
     hitableList* list = hitableList::create();
 
-    createWorld<<<1, 1>>>(list);
+    createWorld<<<1, 1>>>(vertexBuffer.get(), list);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -135,6 +132,7 @@ int testCuda()
     checkCudaErrors(cudaDeviceSynchronize());
     manager.destroy();
     graphics.destroy();
+    vertexBuffer.destroy();
     checkCudaErrors(cudaFree(list));
     checkCudaErrors(cudaFree(cam));
 

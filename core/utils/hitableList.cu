@@ -4,9 +4,9 @@
 __host__ __device__ void destroy(hitable* object) {
     if (object->next) {
         destroy(object->next);
-        object->destroy();
-        delete object;
     }
+    object->destroy();
+    delete object;
 }
 
 __host__ __device__ hitableList::~hitableList() {
@@ -24,17 +24,13 @@ __host__ __device__ void hitableList::addSingle(hitable* object) {
 }
 
 __device__ bool hitableList::hit(const ray& r, float tMin, float tMax, hitRecord& rec) const {
-    hitRecord tempRec;
-    bool hitAnything = false;
     float depth = tMax;
     for (hitable* object = head; object; object = object->next) {
-        if (object->hit(r, tMin, depth, tempRec)) {
-            hitAnything = true;
-            depth = tempRec.t;
-            rec = tempRec;
+        if (object->hit(r, tMin, depth, rec)) {
+            depth = rec.t;
         }
     }
-    return hitAnything;
+    return depth != tMax;
 }
 
 hitableList* hitableList::create() {

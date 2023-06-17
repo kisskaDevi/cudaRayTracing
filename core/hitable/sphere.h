@@ -4,7 +4,7 @@
 #include "hitable.h"
 #include "operations.h"
 
-class sphere : public hitable {
+class alignas(64) sphere : public hitable {
 private:
     vec4 center{ 0.0f, 0.0f, 0.0f, 1.0f };
     vec4 color{ 0.0f,0.0f, 0.0f, 0.0f };

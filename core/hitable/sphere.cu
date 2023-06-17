@@ -5,16 +5,17 @@ __device__ bool sphere::hit(const ray& r, float tMin, float tMax, hitRecord& rec
 
     vec4 oc = r.getOrigin() - center;
     float a = dot(r.getDirection(), r.getDirection());
-    float b = dot(oc, r.getDirection());
-    float c = dot(oc, oc) - radius * radius;
-    float discriminant = b * b - a * c;
+    float b = dot(oc, r.getDirection()) / a;
+    float c = dot(oc, oc) - radius * radius / a;
+    float discriminant = b * b - c;
 
     if (discriminant >= 0) {
-        float temp = (-b - sqrt(discriminant)) / a;
-        result = (temp < tMax&& temp > tMin);
+        discriminant = sqrt(discriminant);
+        float temp = -b - discriminant;
+        result = (temp < tMax && temp > tMin);
         if (!result) {
-            temp = (-b + sqrt(discriminant)) / a;
-            result = (temp < tMax&& temp > tMin);
+            temp = -b + discriminant;
+            result = (temp < tMax && temp > tMin);
         }
         if (result) {
             rec.t = temp;

@@ -3,6 +3,7 @@
 
 #include "camera.h"
 #include "hitableList.h"
+#include "buffer.h"
 
 namespace base {
 

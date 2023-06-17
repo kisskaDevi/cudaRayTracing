@@ -3,14 +3,14 @@
 
 #include "vec4.h"
 #include "camera.h"
-#include "operations.h"
 #include "hitableList.h"
+#include "buffer.h"
 
 class rayTracingGraphics {
 private:
-	vec4* bloomImage;
-	vec4* colorImage;
-	vec4* swapChain;
+	buffer<vec4> bloomImage;
+	buffer<vec4> colorImage;
+	buffer<vec4> swapChain;
 
 	size_t width;
 	size_t height;
@@ -28,15 +28,15 @@ public:
 		this->height = height;
 		this->cam = cam;
 
-		colorImage = Buffer::create(sizeof(vec4) * width * height);
-		bloomImage = Buffer::create(sizeof(vec4) * width * height);
-		swapChain = Buffer::create(sizeof(vec4) * width * height);
+		colorImage = buffer<vec4>(width * height);
+		bloomImage = buffer<vec4>(width * height);
+		swapChain  = buffer<vec4>(width * height);
 	}
 
 	void destroy() {
-		checkCudaErrors(cudaFree(colorImage));
-		checkCudaErrors(cudaFree(bloomImage));
-		checkCudaErrors(cudaFree(swapChain));
+		colorImage.destroy();
+		bloomImage.destroy();
+		swapChain.destroy();
 	}
 
 	void setRandState(curandState* randState) {
@@ -46,7 +46,7 @@ public:
 	void submit(hitableList* list, size_t xThreads, size_t yThreads);
 
 	inline vec4* getSwapChain() {
-		return swapChain;
+		return swapChain.get();
 	}
 	size_t getWidth() const {
 		return width;

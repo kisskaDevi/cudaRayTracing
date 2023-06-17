@@ -145,7 +145,7 @@ __host__ __device__ inline vec4& vec4::operator*=(const float t) {
 }
 
 __host__ __device__ inline vec4& vec4::operator/=(const float t) {
-    float k = 1.0 / t;
+    float k = 1.0f / t;
     *this *= k;
     return *this;
 }

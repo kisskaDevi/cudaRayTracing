@@ -4,24 +4,24 @@
 
 void rayTracingGraphics::submit(hitableList* list, size_t xThreads, size_t yThreads)
 {
-    dim3 blocks(width / xThreads + 1, height / yThreads + 1);
-    dim3 threads(xThreads, yThreads);
+    dim3 blocks(static_cast<unsigned int>(width / xThreads + 1), static_cast<unsigned int>(height / yThreads + 1));
+    dim3 threads(static_cast<unsigned int>(xThreads), static_cast<unsigned int>(yThreads));
 
-    Image::clear << <blocks, threads >> > (swapChain, width, height);
+    Image::clear << <blocks, threads >> > (swapChain.get(), width, height);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    base::render << <blocks, threads >> > (colorImage, width, height, cam, randState, 20, 50, 16, list);
-    bloom::render << <blocks, threads >> > (bloomImage, width, height, cam, randState, 20, 50, 16, list);
+    base::render << <blocks, threads >> > (colorImage.get(), width, height, cam, randState, 8, 50, 8, list);
+    bloom::render << <blocks, threads >> > (bloomImage.get(), width, height, cam, randState, 8, 50, 8, list);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    Image::combine << <blocks, threads >> > (swapChain, colorImage, width, height);
+    Image::combine << <blocks, threads >> > (swapChain.get(), colorImage.get(), width, height);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    Image::combine << <blocks, threads >> > (swapChain, bloomImage, width, height);
+    Image::combine << <blocks, threads >> > (swapChain.get(), bloomImage.get(), width, height);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    Image::normalize << <blocks, threads >> > (swapChain, width, height);
+    Image::normalize << <blocks, threads >> > (swapChain.get(), width, height);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 }
