@@ -27,3 +27,7 @@ __device__ bool sphere::hit(const ray& r, float tMin, float tMax, hitRecord& rec
     }
     return result;
 }
+
+__global__ void createSphere(sphere** sph, vec4 cen, float r, vec4 color, material* matptr) {
+    *sph = new sphere(cen, r, color, matptr);
+}

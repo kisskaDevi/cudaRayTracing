@@ -3,6 +3,9 @@
 
 #include "material.h"
 
+class metal;
+__global__ void createMetal(metal** mat, float f, float angle);
+
 class metal : public material {
 private:
     float fuzz{ 0.0f };
@@ -17,6 +20,25 @@ public:
     __device__ bool lightFound() const override {
         return false;
     }
+
+    static metal* create(float f, float angle) {
+        metal** mat;
+        checkCudaErrors(cudaMalloc((void**)&mat, sizeof(metal**)));
+
+        createMetal << <1, 1 >> > (mat, f, angle);
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        metal** hostmat = new metal*;
+        checkCudaErrors(cudaMemcpy(hostmat, mat, sizeof(metal*), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaFree(mat));
+
+        return *hostmat;
+    }
 };
+
+__global__ void createMetal(metal** mat, float f, float angle) {
+    *mat = new metal(f, angle);
+}
 
 #endif

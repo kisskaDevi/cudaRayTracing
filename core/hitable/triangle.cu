@@ -27,3 +27,7 @@ __device__ bool triangle::hit(const ray& r, float tMin, float tMax, hitRecord& r
 
     return result;
 }
+
+__global__ void createTriangle(triangle** tr, const size_t i0, const size_t i1, const size_t i2, vertex* vertexBuffer, material* matptr) {
+    *tr = new triangle(i0, i1, i2, vertexBuffer, matptr);
+}

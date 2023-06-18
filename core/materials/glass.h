@@ -3,6 +3,9 @@
 
 #include "material.h"
 
+class glass;
+__global__ void createGlass(glass** mat, const float refractiveIndex, const float refractProb);
+
 class glass : public material {
 private:
     float refractiveIndex{ 1.0f };
@@ -35,6 +38,25 @@ public:
     __device__ bool lightFound() const override {
         return false;
     }
+
+    static glass* create(const float& refractiveIndex, const float& refractProb) {
+        glass** mat;
+        checkCudaErrors(cudaMalloc((void**)&mat, sizeof(glass**)));
+
+        createGlass << <1, 1 >> > (mat, refractiveIndex, refractProb);
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        glass** hostmat = new glass*;
+        checkCudaErrors(cudaMemcpy(hostmat, mat, sizeof(glass*), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaFree(mat));
+
+        return *hostmat;
+    }
 };
+
+__global__ void createGlass(glass** mat, const float refractiveIndex, const float refractProb) {
+    *mat = new glass(refractiveIndex, refractProb);
+}
 
 #endif

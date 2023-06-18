@@ -39,3 +39,7 @@ hitableList* hitableList::create() {
     checkCudaErrors(cudaGetLastError());
     return list;
 }
+
+__global__ void addSingleInList(hitableList* list, hitable* object) {
+    list->add(object);
+}

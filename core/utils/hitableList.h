@@ -25,4 +25,15 @@ public:
     static hitableList* create();
 };
 
+__global__ void addSingleInList(hitableList* list, hitable* object);
+
+template<class... T>
+void addInList(hitableList* list, T... objects) {
+    for (auto& object : { objects... }) {
+        addSingleInList << <1, 1 >> > (list, object);
+    }
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+}
+
 #endif

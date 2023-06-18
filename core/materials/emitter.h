@@ -4,6 +4,9 @@
 #include "material.h"
 #include "operations.h"
 
+class emitter;
+__global__ void createEmitter(emitter** mat);
+
 class emitter : public material {
 private:
 public:
@@ -14,6 +17,25 @@ public:
     __device__ bool lightFound() const override {
         return true;
     }
+
+    static emitter* create() {
+        emitter** mat;
+        checkCudaErrors(cudaMalloc((void**)&mat, sizeof(emitter**)));
+
+        createEmitter << <1, 1 >> > (mat);
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        emitter** hostmat = new emitter*;
+        checkCudaErrors(cudaMemcpy(hostmat, mat, sizeof(emitter*), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaFree(mat));
+
+        return *hostmat;
+    }
 };
+
+__global__ void createEmitter(emitter** mat) {
+    *mat = new emitter;
+}
 
 #endif

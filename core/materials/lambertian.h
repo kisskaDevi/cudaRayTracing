@@ -3,6 +3,9 @@
 
 #include "material.h"
 
+class lambertian;
+__global__ void createLambertian(lambertian** mat, float angle);
+
 class lambertian : public material {
 private:
     float angle{ pi };
@@ -15,6 +18,25 @@ public:
     __device__ bool lightFound() const override {
         return false;
     }
+
+    static lambertian* create(float angle) {
+        lambertian** mat;
+        checkCudaErrors(cudaMalloc((void**)&mat, sizeof(lambertian**)));
+
+        createLambertian << <1, 1 >> > (mat, angle);
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        lambertian** hostmat = new lambertian*;
+        checkCudaErrors(cudaMemcpy(hostmat, mat, sizeof(lambertian*), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaFree(mat));
+
+        return *hostmat;
+    }
 };
+
+__global__ void createLambertian(lambertian** mat, float angle) {
+    *mat = new lambertian(angle);
+}
 
 #endif

@@ -18,48 +18,38 @@
 #include "rayTracingGraphics.h"
 #include "graphicsManager.h"
 
-__global__ void createWorld(vertex* vertexBuffer, hitableList* list) {
-    list->add(
-        new sphere(     vec4(0.0f, 0.0f, 0.5f, 1.0f),
-                        0.5,
-                        vec4(0.8, 0.3, 0.3, 1.0f),
-                        new lambertian(pi)),
-        new sphere(     vec4(0.0f, 1.0f, 0.5f, 1.0f),
-                        0.5,
-                        vec4(0.8f, 0.8f, 0.8f, 1.0f),
-                        new metal(3.0f, 0.005*pi)),
-        new sphere(     vec4(0.0f, -1.0f, 0.5f, 1.0f),
-                        0.5,
-                        vec4(0.9f, 0.9f, 0.9f, 1.0f),
-                        new glass(1.5f, 0.96f)),
-        new sphere(     vec4(0.0f, -1.0f, 0.5f, 1.0f),
-                        0.45,
-                        vec4(0.9f, 0.9f, 0.9f, 1.0f),
-                        new glass(1.0f / 1.5f, 0.96f))
+void createWorld(vertex* vertexBuffer, hitableList* list) {
+
+    addInList( list,
+        sphere::create( vec4( 0.0f,  0.0f,  0.5f,  1.0f), 0.50f, vec4(0.8f, 0.3f, 0.3f, 1.0f), lambertian::create(pi)),
+        sphere::create( vec4( 0.0f,  1.0f,  0.5f,  1.0f), 0.50f, vec4(0.8f, 0.8f, 0.8f, 1.0f), metal::create(3.0f, 0.005 * pi)),
+        sphere::create( vec4( 0.0f, -1.0f,  0.5f,  1.0f), 0.50f, vec4(0.9f, 0.9f, 0.9f, 1.0f), glass::create(1.5f, 0.96f)),
+        sphere::create( vec4( 0.0f, -1.0f,  0.5f,  1.0f), 0.45f, vec4(0.9f, 0.9f, 0.9f, 1.0f), glass::create(1.0f / 1.5f, 0.96f)),
+        sphere::create( vec4(-1.5f,  0.0f,  0.5f,  1.0f), 0.50f, vec4(1.0f, 0.9f, 0.7f, 1.0f), emitter::create())
     );
 
-    list->add(
-        /*down*/ new triangle( 0, 1, 2, vertexBuffer, new lambertian(pi)), new triangle(3, 1, 2, vertexBuffer, new lambertian(pi)),
-        /*top*/ new triangle( 4, 5, 6, vertexBuffer, new metal(3.0f, pi)), new triangle( 7, 5, 6, vertexBuffer, new metal(3.0f, pi)),
-        /*back*/ new triangle( 8, 9, 10, vertexBuffer, new metal(3.0f, pi)), new triangle( 11, 10, 8, vertexBuffer, new metal(3.0f, pi)),
-        /*front*/ new triangle( 12, 13, 14, vertexBuffer, new metal(3.0f, 0.3f * pi)), new triangle( 15, 14, 12, vertexBuffer, new metal(3.0f, 0.3f * pi)),
-        /*left*/ new triangle( 16, 17, 18, vertexBuffer, new lambertian(pi)), new triangle( 16, 19, 18, vertexBuffer, new lambertian(pi)),
-        /*right*/ new triangle( 20, 21, 22, vertexBuffer, new lambertian(0.3f * pi)), new triangle( 20, 23, 22, vertexBuffer, new lambertian(0.3f * pi))
+    addInList( list,
+        /*down*/  triangle::create(  0,  1,  2, vertexBuffer, lambertian::create(pi)),          triangle::create(  3,  1,  2, vertexBuffer, lambertian::create(pi)),
+        /*top*/   triangle::create(  4,  5,  6, vertexBuffer, metal::create(3.0f, pi)),         triangle::create(  7,  5,  6, vertexBuffer, metal::create(3.0f, pi)),
+        /*back*/  triangle::create(  8,  9, 10, vertexBuffer, metal::create(3.0f, pi)),         triangle::create( 11, 10,  8, vertexBuffer, metal::create(3.0f, pi)),
+        /*front*/ triangle::create( 12, 13, 14, vertexBuffer, metal::create(3.0f, 0.3f * pi)),  triangle::create( 15, 14, 12, vertexBuffer, metal::create(3.0f, 0.3f * pi)),
+        /*left*/  triangle::create( 16, 17, 18, vertexBuffer, lambertian::create(pi)),          triangle::create( 16, 19, 18, vertexBuffer, lambertian::create(pi)),
+        /*right*/ triangle::create( 20, 21, 22, vertexBuffer, lambertian::create(0.3f * pi)),   triangle::create( 20, 23, 22, vertexBuffer, lambertian::create(0.3f * pi))
     );
 
-    list->add(
-        new sphere(vec4( 1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.80f, 0.20f, 1.00f), new emitter()),
-        new sphere(vec4( 1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.20f, 0.80f, 0.99f, 1.00f), new emitter()),
-        new sphere(vec4(-1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.40f, 0.85f, 1.00f), new emitter()),
-        new sphere(vec4(-1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.40f, 0.99f, 0.50f, 1.00f), new emitter()),
-        new sphere(vec4(-0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), new emitter()),
-        new sphere(vec4( 0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.70f, 0.99f, 1.00f), new emitter()),
-        new sphere(vec4(-0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.59f, 0.50f, 0.90f, 1.00f), new emitter()),
-        new sphere(vec4( 0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.99f, 0.50f, 1.00f), new emitter()),
-        new sphere(vec4(-1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), new emitter()),
-        new sphere(vec4( 1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.90f, 0.90f, 1.00f), new emitter()),
-        new sphere(vec4(-1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.50f, 0.50f, 1.00f), new emitter()),
-        new sphere(vec4( 1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.50f, 0.59f, 0.90f, 1.00f), new emitter())
+    addInList(list,
+        sphere::create(vec4( 1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.80f, 0.20f, 1.00f), emitter::create()),
+        sphere::create(vec4( 1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.20f, 0.80f, 0.99f, 1.00f), emitter::create()),
+        sphere::create(vec4(-1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.40f, 0.85f, 1.00f), emitter::create()),
+        sphere::create(vec4(-1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.40f, 0.99f, 0.50f, 1.00f), emitter::create()),
+        sphere::create(vec4(-0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), emitter::create()),
+        sphere::create(vec4( 0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.70f, 0.99f, 1.00f), emitter::create()),
+        sphere::create(vec4(-0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.59f, 0.50f, 0.90f, 1.00f), emitter::create()),
+        sphere::create(vec4( 0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.99f, 0.50f, 1.00f), emitter::create()),
+        sphere::create(vec4(-1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), emitter::create()),
+        sphere::create(vec4( 1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.90f, 0.90f, 1.00f), emitter::create()),
+        sphere::create(vec4(-1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.50f, 0.50f, 1.00f), emitter::create()),
+        sphere::create(vec4( 1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.50f, 0.59f, 0.90f, 1.00f), emitter::create())
     );
 }
 
@@ -103,15 +93,15 @@ int testCuda()
 {
     size_t width = 1920, height = 1080;
 
+    hitableList* list = hitableList::create();
     buffer<vertex> vertexBuffer = buffer<vertex>(24, createBox().data());
 
-    camera* cam = camera::create(ray(vec4(2.0f, -2.0f, 0.5f, 1.0f), vec4(-1.0f, 1.0f, 0.0f, 0.0f)), float(width) / float(height));
-    hitableList* list = hitableList::create();
 
-    createWorld<<<1, 1>>>(vertexBuffer.get(), list);
+    createWorld(vertexBuffer.get(), list);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
+    camera* cam = camera::create(ray(vec4(2.0f, -2.0f, 0.5f, 1.0f), vec4(-1.0f, 1.0f, 0.0f, 0.0f)), float(width) / float(height));
     rayTracingGraphics graphics(width, height, cam);
     graphicsManager manager(&graphics);
 
