@@ -6,12 +6,13 @@
 
 class emitter;
 __global__ void createEmitter(emitter** mat);
+__global__ void destroyEmitter(emitter* mat);
 
 class emitter : public material {
 private:
 public:
     __host__ __device__ emitter(){}
-    __device__ vec4 scatter(const ray& r, const vec4& norm, curandState* local_rand_state) const override {
+    __device__ vec4 scatter(const ray& r, const vec4& norm, const properties& props, curandState* local_rand_state) const override {
         return vec4(0.0f, 0.0f, 0.0f, 0.0f);
     }
     __device__ bool lightFound() const override {
@@ -32,10 +33,20 @@ public:
 
         return *hostmat;
     }
+
+    static void destroy(emitter* mat) {
+        destroyEmitter << <1, 1 >> > (mat);
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+    }
 };
 
 __global__ void createEmitter(emitter** mat) {
     *mat = new emitter;
+}
+
+__global__ void destroyEmitter(emitter* mat) {
+    delete mat;
 }
 
 #endif

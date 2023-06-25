@@ -2,14 +2,14 @@
 #define HITABLEH
 
 #include "ray.h"
-
-class material;
+#include "material.h"
 
 struct hitRecord
 {
     vec4 point{0.0f, 0.0f, 0.0f, 1.0f };
     vec4 normal{0.0f, 0.0f, 0.0f, 0.0f };
     vec4 color{0.0f, 0.0f, 0.0f, 0.0f };
+    properties props;
     material* mat{nullptr};
     float t{ 0 };
 };

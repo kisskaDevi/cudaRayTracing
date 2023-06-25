@@ -23,6 +23,7 @@ public:
     }
 
     static hitableList* create();
+    static void destroy(hitableList* list);
 };
 
 __global__ void addSingleInList(hitableList* list, hitable* object);

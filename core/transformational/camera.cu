@@ -39,3 +39,7 @@ camera* camera::create(const ray& viewRay, float aspect) {
     checkCudaErrors(cudaGetLastError());
     return cam;
 }
+
+void camera::destroy(camera* cam) {
+    checkCudaErrors(cudaFree(cam));
+}

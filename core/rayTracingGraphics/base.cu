@@ -6,10 +6,11 @@ namespace base {
     __device__ vec4 color(ray r, size_t maxIterations, hitableList* list, curandState* local_rand_state) {
         vec4 color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
         hitRecord rec;
+
         for (; maxIterations > 0; maxIterations--) {
             if (r.getDirection().length2() != 0.0f && list->hit(r, 0.001f, FLT_MAX, rec)) {
                 color = min(rec.color, color);
-                r = ray(rec.point, rec.mat->scatter(r, rec.normal, local_rand_state));
+                r = ray(rec.point, rec.mat->scatter(r, rec.normal, rec.props, local_rand_state));
             }
             else {
                 break;

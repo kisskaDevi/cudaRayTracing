@@ -26,6 +26,8 @@ public:
     __host__ __device__ camera(const ray viewRay, float aspect);
 
     __device__ ray getPixelRay(float u, float v, curandState* local_rand_state);
+
     static camera* create(const ray& viewRay, float aspect);
+    static void destroy(camera* cam);
 };
 #endif

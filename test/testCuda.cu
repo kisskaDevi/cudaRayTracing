@@ -10,98 +10,156 @@
 #include "sphere.h"
 #include "hitableList.h"
 #include "camera.h"
+#include "baseMaterial.h"
 #include "emitter.h"
-#include "glass.h"
-#include "lambertian.h"
-#include "metal.h"
 
 #include "rayTracingGraphics.h"
 #include "graphicsManager.h"
 
-void createWorld(vertex* vertexBuffer, hitableList* list) {
+struct primitive {
+    buffer<vertex> vertexBuffer;
+    std::vector<uint32_t> indexBuffer;
+    size_t firstIndex{ 0 };
+    size_t size{ 0 };
+    material* mat{ nullptr };
 
-    addInList( list,
-        sphere::create( vec4( 0.0f,  0.0f,  0.5f,  1.0f), 0.50f, vec4(0.8f, 0.3f, 0.3f, 1.0f), lambertian::create(pi)),
-        sphere::create( vec4( 0.0f,  1.0f,  0.5f,  1.0f), 0.50f, vec4(0.8f, 0.8f, 0.8f, 1.0f), metal::create(3.0f, 0.005 * pi)),
-        sphere::create( vec4( 0.0f, -1.0f,  0.5f,  1.0f), 0.50f, vec4(0.9f, 0.9f, 0.9f, 1.0f), glass::create(1.5f, 0.96f)),
-        sphere::create( vec4( 0.0f, -1.0f,  0.5f,  1.0f), 0.45f, vec4(0.9f, 0.9f, 0.9f, 1.0f), glass::create(1.0f / 1.5f, 0.96f)),
-        sphere::create( vec4(-1.5f,  0.0f,  0.5f,  1.0f), 0.50f, vec4(1.0f, 0.9f, 0.7f, 1.0f), emitter::create())
-    );
+    primitive(
+        std::vector<vertex>& vertexBuffer,
+        std::vector<uint32_t>& indexBuffer,
+        size_t firstIndex,
+        material* mat
+    ) : vertexBuffer(std::move(buffer<vertex>(vertexBuffer.size(), vertexBuffer.data()))), indexBuffer(std::move(indexBuffer)), firstIndex(firstIndex), size(this->indexBuffer.size()), mat(mat) {}
 
-    addInList( list,
-        /*down*/  triangle::create(  0,  1,  2, vertexBuffer, lambertian::create(pi)),          triangle::create(  3,  1,  2, vertexBuffer, lambertian::create(pi)),
-        /*top*/   triangle::create(  4,  5,  6, vertexBuffer, metal::create(3.0f, pi)),         triangle::create(  7,  5,  6, vertexBuffer, metal::create(3.0f, pi)),
-        /*back*/  triangle::create(  8,  9, 10, vertexBuffer, metal::create(3.0f, pi)),         triangle::create( 11, 10,  8, vertexBuffer, metal::create(3.0f, pi)),
-        /*front*/ triangle::create( 12, 13, 14, vertexBuffer, metal::create(3.0f, 0.3f * pi)),  triangle::create( 15, 14, 12, vertexBuffer, metal::create(3.0f, 0.3f * pi)),
-        /*left*/  triangle::create( 16, 17, 18, vertexBuffer, lambertian::create(pi)),          triangle::create( 16, 19, 18, vertexBuffer, lambertian::create(pi)),
-        /*right*/ triangle::create( 20, 21, 22, vertexBuffer, lambertian::create(0.3f * pi)),   triangle::create( 20, 23, 22, vertexBuffer, lambertian::create(0.3f * pi))
-    );
+    void moveToList(hitableList* list) {
+        for (size_t index = firstIndex; index < size; index += 3) {
+            addInList( list, triangle::create( indexBuffer[index + 0], indexBuffer[index + 1], indexBuffer[index + 2], vertexBuffer.get(), mat));
+        }
+    }
+};
 
-    addInList(list,
-        sphere::create(vec4( 1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.80f, 0.20f, 1.00f), emitter::create()),
-        sphere::create(vec4( 1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.20f, 0.80f, 0.99f, 1.00f), emitter::create()),
-        sphere::create(vec4(-1.5f, -1.5f,  0.2f,  1.0f), 0.2, vec4(0.99f, 0.40f, 0.85f, 1.00f), emitter::create()),
-        sphere::create(vec4(-1.5f,  1.5f,  0.2f,  1.0f), 0.2, vec4(0.40f, 0.99f, 0.50f, 1.00f), emitter::create()),
-        sphere::create(vec4(-0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), emitter::create()),
-        sphere::create(vec4( 0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.70f, 0.99f, 1.00f), emitter::create()),
-        sphere::create(vec4(-0.5f,  0.5f,  0.2f,  1.0f), 0.2, vec4(0.59f, 0.50f, 0.90f, 1.00f), emitter::create()),
-        sphere::create(vec4( 0.5f, -0.5f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.99f, 0.50f, 1.00f), emitter::create()),
-        sphere::create(vec4(-1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.65f, 0.00f, 0.91f, 1.00f), emitter::create()),
-        sphere::create(vec4( 1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.80f, 0.90f, 0.90f, 1.00f), emitter::create()),
-        sphere::create(vec4(-1.0f,  1.0f,  0.2f,  1.0f), 0.2, vec4(0.90f, 0.50f, 0.50f, 1.00f), emitter::create()),
-        sphere::create(vec4( 1.0f, -1.0f,  0.2f,  1.0f), 0.2, vec4(0.50f, 0.59f, 0.90f, 1.00f), emitter::create())
-    );
+enum sign
+{
+    minus,
+    plus
+};
+
+std::vector<vertex> createBoxVertexBuffer(vec4 scale, vec4 translate, sign normalSign, properties props, std::vector<vec4> colors) {
+    float plus = normalSign == sign::plus ? 1.0f : -1.0f, minus = -plus;
+    vec4 v[8] =
+    {
+        scale * vec4(-1.0f, -1.0f, -1.0f, 1.0f) + translate,
+        scale * vec4(-1.0f,  1.0f, -1.0f, 1.0f) + translate,
+        scale * vec4(1.0f, -1.0f, -1.0f, 1.0f) + translate,
+        scale * vec4(1.0f,  1.0f, -1.0f, 1.0f) + translate,
+        scale * vec4(-1.0f, -1.0f,  1.0f, 1.0f) + translate,
+        scale * vec4(-1.0f,  1.0f,  1.0f, 1.0f) + translate,
+        scale * vec4(1.0f, -1.0f,  1.0f, 1.0f) + translate,
+        scale * vec4(1.0f,  1.0f,  1.0f, 1.0f) + translate
+    };
+    vec4 n[6] =
+    {
+        vec4(0.0f, 0.0f, minus, 0.0f), vec4(0.0f, 0.0f, plus, 0.0f), vec4(minus, 0.0f, 0.0f, 0.0f),
+        vec4(plus, 0.0f, 0.0f, 0.0f), vec4(0.0f, minus, 0.0f, 0.0f), vec4(0.0f, plus, 0.0f, 0.0f)
+    };
+    size_t indices[6][4] = { {0,1,2,3}, {4,5,6,7}, {0,1,4,5}, {2,3,6,7}, {0,2,4,6}, {1,3,5,7} };
+
+    std::vector<vertex> vertexBuffer;
+    for (size_t i = 0; i < 6; i++) {
+        for (size_t j = 0; j < 4; j++) {
+            vertexBuffer.push_back(vertex(v[indices[i][j]], n[i], colors[i], props));
+        }
+    }
+    return vertexBuffer;
 }
 
-std::vector<vertex> createBox() {
-    std::vector<vertex> vertexBuffer(24);
+std::vector<uint32_t> createBoxIndexBuffer() {
+    return std::vector<uint32_t>{
+        0, 1, 2, 3, 1, 2,
+        4, 5, 6, 7, 5, 6,
+        8, 9, 11, 10, 11, 8,
+        12, 13, 15, 14, 15, 12,
+        16, 17, 19, 16, 18, 19,
+        20, 21, 23, 20, 22, 23
+    };
+}
 
-    vertexBuffer[0] = vertex(vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
-    vertexBuffer[1] = vertex(vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
-    vertexBuffer[2] = vertex(vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
-    vertexBuffer[3] = vertex(vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, 0.0f, 1.0f, 0.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f));
+void createWorld(std::vector<primitive>& primitives, hitableList* list, baseMaterial* baseMat, emitter* emit) {
 
-    vertexBuffer[4] = vertex(vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
-    vertexBuffer[5] = vertex(vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
-    vertexBuffer[6] = vertex(vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
-    vertexBuffer[7] = vertex(vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, 0.0f, -1.0f, 0.0f), vec4(0.9f, 0.9f, 0.9f, 1.0f));
+    addInList( list,
+        sphere::create( vec4( 0.0f,  0.0f,  0.5f,  1.0f), 0.50f, vec4(0.8f, 0.3f, 0.3f, 1.0f), { 1.0f, 0.0f, 0.0f, pi }, baseMat),
+        sphere::create( vec4( 0.0f,  1.0f,  0.5f,  1.0f), 0.50f, vec4(0.8f, 0.8f, 0.8f, 1.0f), { 1.0f, 0.0f, 3.0f, 0.05f * pi }, baseMat),
+        sphere::create( vec4( 0.0f, -1.0f,  0.5f,  1.0f), 0.50f, vec4(0.9f, 0.9f, 0.9f, 1.0f), { 1.5f, 0.96f, 0.001f, 0.0f }, baseMat),
+        sphere::create( vec4( 0.0f, -1.0f,  0.5f,  1.0f), 0.45f, vec4(0.9f, 0.9f, 0.9f, 1.0f), { 1.0f / 1.5f, 0.96f, 0.001f, 0.0f }, baseMat),
+        sphere::create( vec4(-1.5f,  0.0f,  0.5f,  1.0f), 0.50f, vec4(1.00f, 0.90f, 0.70f, 1.00f), {}, emit),
+        sphere::create( vec4( 1.5f, -1.5f,  0.2f,  1.0f), 0.20f, vec4(0.99f, 0.80f, 0.20f, 1.00f), {}, emit),
+        sphere::create( vec4( 1.5f,  1.5f,  0.2f,  1.0f), 0.20f, vec4(0.20f, 0.80f, 0.99f, 1.00f), {}, emit),
+        sphere::create( vec4(-1.5f, -1.5f,  0.2f,  1.0f), 0.20f, vec4(0.99f, 0.40f, 0.85f, 1.00f), {}, emit),
+        sphere::create( vec4(-1.5f,  1.5f,  0.2f,  1.0f), 0.20f, vec4(0.40f, 0.99f, 0.50f, 1.00f), {}, emit),
+        sphere::create( vec4(-0.5f, -0.5f,  0.2f,  1.0f), 0.20f, vec4(0.65f, 0.00f, 0.91f, 1.00f), {}, emit),
+        sphere::create( vec4( 0.5f,  0.5f,  0.2f,  1.0f), 0.20f, vec4(0.80f, 0.70f, 0.99f, 1.00f), {}, emit),
+        sphere::create( vec4(-0.5f,  0.5f,  0.2f,  1.0f), 0.20f, vec4(0.59f, 0.50f, 0.90f, 1.00f), {}, emit),
+        sphere::create( vec4( 0.5f, -0.5f,  0.2f,  1.0f), 0.20f, vec4(0.90f, 0.99f, 0.50f, 1.00f), {}, emit),
+        sphere::create( vec4(-1.0f, -1.0f,  0.2f,  1.0f), 0.20f, vec4(0.65f, 0.00f, 0.91f, 1.00f), {}, emit),
+        sphere::create( vec4( 1.0f,  1.0f,  0.2f,  1.0f), 0.20f, vec4(0.80f, 0.90f, 0.90f, 1.00f), {}, emit),
+        sphere::create( vec4(-1.0f,  1.0f,  0.2f,  1.0f), 0.20f, vec4(0.90f, 0.50f, 0.50f, 1.00f), {}, emit),
+        sphere::create( vec4( 1.0f, -1.0f,  0.2f,  1.0f), 0.20f, vec4(0.50f, 0.59f, 0.90f, 1.00f), {}, emit)
+    );
 
-    vertexBuffer[8] = vertex(vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.2f, 1.0f));
-    vertexBuffer[9] = vertex(vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.8f, 0.2f, 1.0f));
-    vertexBuffer[10] = vertex(vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.2f, 0.2f, 0.8f, 1.0f));
-    vertexBuffer[11] = vertex(vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.2f, 0.8f, 1.0f));
+    primitives.emplace_back(
+        createBoxVertexBuffer(vec4(3.0f, 3.0f, 1.5f, 1.0f), vec4(0.0f, 0.0f, 1.5f, 0.0f), sign::minus, { 1.0f, 0.0f, 0.0f, pi },
+            { vec4(0.5f, 0.5f, 0.5f, 1.0f), vec4(0.5f, 0.5f, 0.5f, 1.0f), vec4(0.8f, 0.4f, 0.8f, 1.0f), vec4(0.4f, 0.4f, 0.4f, 1.0f), vec4(0.9f, 0.5f, 0.0f, 1.0f), vec4(0.1f, 0.4f, 0.9f, 1.0f) }),
+        createBoxIndexBuffer(),
+        0,
+        baseMat
+    );
+    primitives.back().moveToList(list);
 
-    vertexBuffer[12] = vertex(vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
-    vertexBuffer[13] = vertex(vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
-    vertexBuffer[14] = vertex(vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
-    vertexBuffer[15] = vertex(vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(-1.0f, 0.0f, 0.0f, 0.0f), vec4(0.8f, 0.8f, 0.8f, 1.0f));
+    primitives.emplace_back(
+        createBoxVertexBuffer(vec4(0.4f, 0.4f, 0.4f, 1.0f), vec4(1.5f, 0.0f, 0.4f, 0.0f), sign::plus, { 2.0f, 0.96f, 0.01f, 0.01f * pi },
+            std::vector<vec4>(6, vec4(1.0f))),
+        createBoxIndexBuffer(),
+        0,
+        baseMat
+    );
+    primitives.back().moveToList(list);
 
-    vertexBuffer[16] = vertex(vec4(-3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
-    vertexBuffer[17] = vertex(vec4(3.0f, -3.0f, 0.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
-    vertexBuffer[18] = vertex(vec4(3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
-    vertexBuffer[19] = vertex(vec4(-3.0f, -3.0f, 3.0f, 1.0f), vec4(0.0f, 1.0f, 0.0f, 0.0f), vec4(0.8f, 0.5f, 0.0f, 1.0f));
+    primitives.emplace_back(
+        createBoxVertexBuffer(vec4(0.3f, 0.3f, 0.3f, 1.0f), vec4(1.5f, 0.0f, 0.4f, 0.0f), sign::plus, { 0.5f, 0.96f, 0.01f, 0.01f * pi },
+            std::vector<vec4>(6, vec4(1.0f))),
+        createBoxIndexBuffer(),
+        0,
+        baseMat
+    );
+    primitives.back().moveToList(list);
 
-    vertexBuffer[20] = vertex(vec4(-3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
-    vertexBuffer[21] = vertex(vec4(3.0f, 3.0f, 0.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
-    vertexBuffer[22] = vertex(vec4(3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
-    vertexBuffer[23] = vertex(vec4(-3.0f, 3.0f, 3.0f, 1.0f), vec4(0.0f, -1.0f, 0.0f, 0.0f), vec4(0.0f, 0.4f, 0.8f, 1.0f));
-
-    return vertexBuffer;
+    for (int i = 0; i < 0; i++) {
+        float phi = 2.0f * pi * float(i) / 50.0f;
+        primitives.emplace_back(
+            createBoxVertexBuffer(vec4(0.1f, 0.1f, 0.1f, 1.0f), vec4(2.8 * std::cos(phi), 2.8 * std::sin(phi), 0.1f, 0.0f), sign::plus, { std::cos(phi), 0.96f, std::sin(phi), std::abs(std::sin(phi) * std::cos(phi)) * pi },
+                std::vector<vec4>(6, vec4(std::abs(std::cos(phi)), std::abs(std::sin(phi)), std::abs(std::sin(phi) * std::cos(phi)), 1.0f))),
+            createBoxIndexBuffer(),
+            0,
+            baseMat
+        );
+        primitives.back().moveToList(list);
+    }
 }
 
 int testCuda()
 {
     size_t width = 1920, height = 1080;
 
+    camera* cam = camera::create(ray(vec4(2.0f, 2.0f, 2.0f, 1.0f), vec4(-1.0f, -1.0f, -1.0f, 0.0f)), float(width) / float(height));
     hitableList* list = hitableList::create();
-    buffer<vertex> vertexBuffer = buffer<vertex>(24, createBox().data());
+    baseMaterial* baseMat = baseMaterial::create();
+    emitter* emit = emitter::create();
 
+    std::vector<primitive> primitives;
 
-    createWorld(vertexBuffer.get(), list);
+    createWorld(primitives, list, baseMat, emit);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    camera* cam = camera::create(ray(vec4(2.0f, -2.0f, 0.5f, 1.0f), vec4(-1.0f, 1.0f, 0.0f, 0.0f)), float(width) / float(height));
     rayTracingGraphics graphics(width, height, cam);
     graphicsManager manager(&graphics);
 
@@ -111,20 +169,22 @@ int testCuda()
     for (size_t i = 0; i < steps; i++)
     {
         auto start = std::chrono::high_resolution_clock::now();
-        manager.drawFrame(list);
 
+        manager.drawFrame(list);
         Image::outPPM(graphics.getSwapChain(), width, height, "image" + std::to_string(i + 1) + ".ppm");
+
         std::cout << (i + 1) * 100 / steps << " %\t"
         << std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start).count() << " ms" << std::endl;
     }
+    checkCudaErrors(cudaDeviceSynchronize());
     std::cout << "render time = " << std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start).count() << " ms" << std::endl;
 
-    checkCudaErrors(cudaDeviceSynchronize());
     manager.destroy();
     graphics.destroy();
-    vertexBuffer.destroy();
-    checkCudaErrors(cudaFree(list));
-    checkCudaErrors(cudaFree(cam));
+    hitableList::destroy(list);
+    camera::destroy(cam);
+    baseMaterial::destroy(baseMat);
+    emitter::destroy(emit);
 
     return 0;
 }

@@ -22,12 +22,13 @@ __device__ bool sphere::hit(const ray& r, float tMin, float tMax, hitRecord& rec
             rec.point = r.point(rec.t);
             rec.normal = (rec.point - center) / radius;
             rec.color = color;
+            rec.props = props;
             rec.mat = matptr;
         }
     }
     return result;
 }
 
-__global__ void createSphere(sphere** sph, vec4 cen, float r, vec4 color, material* matptr) {
-    *sph = new sphere(cen, r, color, matptr);
+__global__ void createSphere(sphere** sph, vec4 cen, float r, vec4 color, const properties props, material* matptr) {
+    *sph = new sphere(cen, r, color, props, matptr);
 }

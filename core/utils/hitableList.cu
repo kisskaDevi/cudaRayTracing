@@ -1,16 +1,16 @@
 #include "hitableList.h"
 #include "operations.h"
 
-__host__ __device__ void destroy(hitable* object) {
+__host__ __device__ void destroyObject(hitable* object) {
     if (object->next) {
-        destroy(object->next);
+        destroyObject(object->next);
     }
     object->destroy();
     delete object;
 }
 
 __host__ __device__ hitableList::~hitableList() {
-    destroy(head);
+    destroyObject(head);
 }
 
 __host__ __device__ void hitableList::addSingle(hitable* object) {
@@ -38,6 +38,10 @@ hitableList* hitableList::create() {
     checkCudaErrors(cudaMalloc((void**)&list, sizeof(hitableList)));
     checkCudaErrors(cudaGetLastError());
     return list;
+}
+
+void hitableList::destroy(hitableList* list) {
+    checkCudaErrors(cudaFree(list));
 }
 
 __global__ void addSingleInList(hitableList* list, hitable* object) {

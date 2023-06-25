@@ -10,8 +10,8 @@
 class graphicsManager
 {
 private:
-	size_t xThreads{ 8 };
-	size_t yThreads{ 4 };
+	size_t xThreads{ 16 };
+	size_t yThreads{ 9 };
 
 	curandState* randState{ nullptr };
 
